@@ -19,6 +19,18 @@ from itertools import groupby
 #
 def copy_raw_files_to_input_folder(n):
     """Funcion copy_files"""
+    raw_files = glob.glob("files/raw/*.txt")
+    os.makedirs("files/input", exist_ok=True)
+
+    for file_path in raw_files:
+        base_name = os.path.basename(file_path).replace(".txt", "")
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        for i in range(1, n + 1):
+            new_name = f"{base_name}_{i}.txt"
+            new_path = os.path.join("files/input", new_name)
+            with open(new_path, "w", encoding="utf-8") as new_file:
+                new_file.write(content)
 
 
 #
@@ -38,6 +50,16 @@ def copy_raw_files_to_input_folder(n):
 #
 def load_input(input_directory):
     """Funcion load_input"""
+    result = []
+    files = glob.glob(os.path.join(input_directory, "*.txt"))
+    for file_path in files:
+        file_name = os.path.basename(file_path)
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                cleaned_line = line.strip()
+                if cleaned_line:
+                    result.append((file_name, cleaned_line))
+    return result
 
 
 #
@@ -47,6 +69,12 @@ def load_input(input_directory):
 #
 def line_preprocessing(sequence):
     """Line Preprocessing"""
+    result = []
+    for filename, line in sequence:
+        words = "".join(c if c.isalnum() else " " for c in line).split()
+        for word in words:
+            result.append((word.lower(), 1))
+    return result
 
 
 #
@@ -63,6 +91,7 @@ def line_preprocessing(sequence):
 #
 def mapper(sequence):
     """Mapper"""
+    return sequence
 
 
 #
@@ -78,6 +107,7 @@ def mapper(sequence):
 #
 def shuffle_and_sort(sequence):
     """Shuffle and Sort"""
+    return sorted(sequence, key=lambda x: x[0])
 
 
 #
@@ -88,6 +118,11 @@ def shuffle_and_sort(sequence):
 #
 def reducer(sequence):
     """Reducer"""
+    result = []
+    for key, group in groupby(sequence, key=lambda x: x[0]):
+        total = sum(count for _, count in group)
+        result.append((key, total))
+    return result
 
 
 #
@@ -96,6 +131,11 @@ def reducer(sequence):
 #
 def create_ouptput_directory(output_directory):
     """Create Output Directory"""
+    if os.path.exists(output_directory):
+        for file in os.listdir(output_directory):
+            os.remove(os.path.join(output_directory, file))
+    else:
+        os.makedirs(output_directory)
 
 
 #
@@ -108,6 +148,10 @@ def create_ouptput_directory(output_directory):
 #
 def save_output(output_directory, sequence):
     """Save Output"""
+    output_file = os.path.join(output_directory, "part-00000")
+    with open(output_file, "w", encoding="utf-8") as f:
+        for key, value in sequence:
+            f.write(f"{key}\t{value}\n")
 
 
 #
@@ -116,6 +160,9 @@ def save_output(output_directory, sequence):
 #
 def create_marker(output_directory):
     """Create Marker"""
+    marker_path = os.path.join(output_directory, "_SUCCESS")
+    with open(marker_path, "w") as f:
+        f.write("")
 
 
 #
@@ -123,6 +170,14 @@ def create_marker(output_directory):
 #
 def run_job(input_directory, output_directory):
     """Job"""
+    data = load_input(input_directory)
+    preprocessed = line_preprocessing(data)
+    mapped = mapper(preprocessed)
+    sorted_data = shuffle_and_sort(mapped)
+    reduced = reducer(sorted_data)
+    create_ouptput_directory(output_directory)
+    save_output(output_directory, reduced)
+    create_marker(output_directory)
 
 
 if __name__ == "__main__":
